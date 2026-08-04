@@ -22,6 +22,10 @@
             <Button
                 Content="음성 추출"
                 Command="{Binding ExtractAudioCommand}" />
+            <Button
+                Content="자막 생성"
+                Command="{Binding GenerateSubtitleCommand}" />
+            
             
             <TextBlock
                 Margin="0,20,0,0"

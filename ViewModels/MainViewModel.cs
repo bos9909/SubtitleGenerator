@@ -136,17 +136,36 @@ public partial class MainViewModel : ObservableObject
             Status = "음성 추출 실패";
         }
     }
+
+    /// <summary>
+    /// wav 파일을 분석해서 자막을 생성한다.
+    /// </summary>
     [RelayCommand]
-    private async Task RunWhisper()
+    private async Task GenerateSubtitle()
     {
-        Status = "Whisper 실행 중...";
+        if (string.IsNullOrEmpty(VideoPath))
+        {
+            Status = "먼저 영상을 선택해주세요.";
+            return;
+        }
 
-        string result =
-            await _whisperService.RunWhisperAsync(
-                "test.wav");
 
-        FfmpegOutput = result;
+        Status = "Whisper 분석 중...";
 
-        Status = "Whisper 완료";
+
+        string wavPath =
+            Path.ChangeExtension(
+                VideoPath,
+                ".wav"
+            );
+
+
+        var result = await _whisperService.GenerateSubtitleAsync(wavPath);
+
+        FfmpegOutput = result.Message;
+
+        Status = result.Success
+            ? "자막 생성 완료"
+            : "자막 생성 실패";
     }
 }
