@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SubtitleGenerator.Services;
+using System.IO;
+using System.Windows;
 
 namespace SubtitleGenerator.ViewModels;
 
@@ -16,6 +18,10 @@ public partial class MainViewModel : ObservableObject
     /// 나중에 프로젝트가 커지면 DI(의존성 주입)로 개선할 예정이다.
     /// </summary>
     private readonly FileDialogService _fileDialogService = new();
+
+    private readonly FFmpegService _ffmpegService = new();
+
+    private readonly WhisperService _whisperService = new();
 
     /// <summary>
     /// 현재 선택된 영상 파일의 경로.
@@ -39,6 +45,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int progress = 0;
 
+    [ObservableProperty]
+    private string ffmpegOutput = "";
 
     /// <summary>
     /// "영상 선택" 버튼을 눌렀을 때 실행되는 명령(Command).
@@ -69,5 +77,95 @@ public partial class MainViewModel : ObservableObject
 
         // 현재는 작업이 끝났으므로 진행률 100%
         Progress = 100;
+    }
+
+    [RelayCommand]
+    private async Task GetVersion()
+    {
+        string version = await _ffmpegService.GetVersionAsync();
+
+        MessageBox.Show(version);
+    }
+
+    /// <summary>
+    /// 선택한 영상에서 음성을 추출한다.
+    /// </summary>
+    [RelayCommand]
+    private async Task ExtractAudio()
+    {
+        // 파일 선택 여부 확인
+        if (string.IsNullOrEmpty(VideoPath) ||
+            VideoPath == "선택된 파일 없음")
+        {
+            Status = "먼저 영상을 선택해주세요.";
+            return;
+        }
+
+
+        Status = "음성 추출 중...";
+        Progress = 0;
+
+
+        // 원본 영상과 같은 이름의 wav 생성
+        string outputPath =
+            Path.ChangeExtension(
+                VideoPath,
+                ".wav"
+            );
+
+
+        bool result =
+            await _ffmpegService.ExtractAudioAsync(
+                VideoPath,
+                outputPath
+            );
+
+
+        if (result)
+        {
+            Status = "음성 추출 완료";
+
+            Progress = 100;
+
+            // 결과 경로 표시
+            FfmpegOutput =
+                $"생성 파일:\n{outputPath}";
+        }
+        else
+        {
+            Status = "음성 추출 실패";
+        }
+    }
+
+    /// <summary>
+    /// wav 파일을 분석해서 자막을 생성한다.
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateSubtitle()
+    {
+        if (string.IsNullOrEmpty(VideoPath))
+        {
+            Status = "먼저 영상을 선택해주세요.";
+            return;
+        }
+
+
+        Status = "Whisper 분석 중...";
+
+
+        string wavPath =
+            Path.ChangeExtension(
+                VideoPath,
+                ".wav"
+            );
+
+
+        var result = await _whisperService.GenerateSubtitleAsync(wavPath);
+
+        FfmpegOutput = result.Message;
+
+        Status = result.Success
+            ? "자막 생성 완료"
+            : "자막 생성 실패";
     }
 }

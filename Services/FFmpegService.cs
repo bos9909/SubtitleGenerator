@@ -1,52 +1,134 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace SubtitleGenerator.Services
 {
     /// <summary>
     /// FFmpeg를 실행하는 서비스.
     ///
-    /// 현재는 FFmpeg가 정상적으로 실행되는지만 확인한다.
-    /// 나중에는
-    /// - 음성 추출
-    /// - 자막 삽입
-    /// - 영상 변환
-    /// 등의 기능을 추가할 예정이다.
+    /// 현재는 FFmpeg 실행 및 버전 확인을 담당한다.
     /// </summary>
     public class FFmpegService
     {
         /// <summary>
-        /// FFmpeg의 버전 정보를 가져온다.
-        ///
-        /// 실행에 성공하면
-        /// 버전 문자열을 반환한다.
-        ///
-        /// 실패하면
-        /// 오류 메시지를 반환한다.
+        /// FFmpeg 버전 정보를 가져온다.
         /// </summary>
-        public string GetVersion()
+        public async Task<string> GetVersionAsync()
         {
-            // Process는 실행되는 프로그램 자체를 나타낸다.
-            Process process = new();
+            ProcessStartInfo startInfo = new()
+            {
+                // 프로젝트 내부 Tools 폴더의 FFmpeg 실행 파일
+                FileName = @"Tools\ffmpeg.exe",
 
-            // ProcessStartInfo는 실행하기 전에 필요한 설정을 담는 객체이다.
-            process.StartInfo = new ProcessStartInfo();
+                Arguments = "-version",
 
-            // 실행할 프로그램의 경로.
-            process.StartInfo.FileName = @"Tools\ffmpeg.exe";
+                // 직접 실행
+                UseShellExecute = false,
 
-            // ffmpeg에게 전달할 명령줄 옵션.
-            // "-version"은 버전 정보만 출력하고 종료하는 옵션이다.
-            process.StartInfo.Arguments = "-version";
+                // 출력 읽기 허용
+                RedirectStandardOutput = true,
 
-            // 여기까지는 설정만 했다.
-            // 아직 실행은 하지 않았다.
+                // 오류 출력 읽기 허용
+                RedirectStandardError = true,
 
-            return "여기까지 완료";
+                // 콘솔창 숨김
+                CreateNoWindow = true
+            };
+
+            using Process process = new()
+            {
+                StartInfo = startInfo
+            };
+
+            process.Start();
+
+            // stdout, stderr 둘 다 읽는다.
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            string output = await outputTask;
+            string error = await errorTask;
+
+            // FFmpeg는 stderr에 정상 출력하는 경우가 있으므로 둘 다 확인
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                return output;
+            }
+
+            return error;
+        }
+
+        /// <summary>
+        /// 영상 파일에서 음성만 추출하여 wav 파일을 생성한다.
+        /// FFmpeg를 사용해서 영상 스트림을 제거하고 오디오만 저장한다.
+        /// </summary>
+        public async Task<bool> ExtractAudioAsync(
+            string inputPath,
+            string outputPath)
+        {
+            // FFmpeg 실행 설정
+            ProcessStartInfo info = new()
+            {
+                // 프로젝트 내부 Tools 폴더의 FFmpeg 실행 파일
+                FileName = @"Tools\ffmpeg.exe",
+
+                // 실행 옵션
+                // -i : 입력 파일
+                // -vn : 영상 스트림 제거
+                // -acodec pcm_s16le : wav에서 사용하는 PCM 형식
+                Arguments =
+                    $"-i \"{inputPath}\" " +
+                    "-vn " +
+                    "-acodec pcm_s16le " +
+                    $"\"{outputPath}\"",
+
+                // 콘솔창 직접 실행 방지
+                UseShellExecute = false,
+
+                // FFmpeg 출력 읽기
+                RedirectStandardOutput = true,
+
+                // FFmpeg 오류 출력 읽기
+                RedirectStandardError = true,
+
+                // 콘솔창 숨김
+                CreateNoWindow = true
+            };
+
+
+            // 프로세스 생성
+            using Process process = new()
+            {
+                StartInfo = info
+            };
+
+
+            // FFmpeg 실행
+            process.Start();
+
+            // FFmpeg 출력 수집
+            Task<string> outputTask =
+                process.StandardOutput.ReadToEndAsync();
+
+            Task<string> errorTask =
+                process.StandardError.ReadToEndAsync();
+
+
+            // 종료까지 대기
+            await process.WaitForExitAsync();
+
+
+            // 출력 결과 가져오기
+            string output =
+                await outputTask;
+
+            string error =
+                await errorTask;
+
+
+            // 종료 코드 0이면 성공
+            return process.ExitCode == 0;
         }
     }
 }

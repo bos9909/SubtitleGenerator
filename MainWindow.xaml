@@ -17,9 +17,16 @@
 
             <Button
                 Content="영상 선택"
-                Command="{Binding SelectVideoCommand}"
-                />
+                Command="{Binding SelectVideoCommand}"/>
 
+            <Button
+                Content="음성 추출"
+                Command="{Binding ExtractAudioCommand}" />
+            <Button
+                Content="자막 생성"
+                Command="{Binding GenerateSubtitleCommand}" />
+            
+            
             <TextBlock
                 Margin="0,20,0,0"
                 FontWeight="Bold"
@@ -41,5 +48,17 @@
         Value="{Binding Progress}" />
 
         </StackPanel>
+
+        <StackPanel VerticalAlignment="Bottom"
+                            HorizontalAlignment="Right">
+            <Button Content="FFmpeg 버전확인"
+                    Command="{Binding GetVersionCommand}">
+            </Button>
+
+            <Button
+            Content="Whisper 테스트"
+            Command="{Binding RunWhisperCommand}" />
+        </StackPanel>
+
     </Grid>
 </Window>
